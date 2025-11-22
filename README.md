@@ -6,10 +6,14 @@ A custom git-like version control system written in Rust with a Terminal User In
 
 - **Custom VCS Implementation**: Full-featured version control system with support for:
   - Repository initialization
-  - File staging (add)
-  - Commits with history tracking
+  - File staging with directory recursion
+  - Commits with history tracking and hooks
+  - Branch management (create, delete, rename, checkout)
+  - Tag support (lightweight and annotated)
   - Status checking
+  - Commit log viewing
   - Object storage (blobs, trees, commits)
+  - Git hooks (pre-commit, post-commit, etc.)
   
 - **Git Compatibility Mode**: Automatically detects and works with existing git repositories using libgit2
   - Read git repository status
@@ -19,6 +23,8 @@ A custom git-like version control system written in Rust with a Terminal User In
 - **Interactive TUI**: Beautiful terminal user interface built with Ratatui
   - Repository status view
   - Commit history viewer
+  - Branches view with current branch indicator
+  - Tags list view
   - Keyboard navigation (Vim-style + arrow keys)
   - Help screen with all shortcuts
 
@@ -55,9 +61,11 @@ Creates a new EvokerVcs repository in the specified directory (defaults to curre
 
 ```bash
 evokervcs add <file1> <file2> ...
+evokervcs add src/          # Add entire directory recursively
+evokervcs add docs/ tests/  # Add multiple directories
 ```
 
-Stage files for the next commit.
+Stage files or entire directories for the next commit. Directories are added recursively.
 
 #### Commit changes
 
@@ -65,7 +73,7 @@ Stage files for the next commit.
 evokervcs commit -m "Your commit message" --author "Your Name"
 ```
 
-Create a new commit with staged changes.
+Create a new commit with staged changes. Runs pre-commit and post-commit hooks if configured.
 
 #### View repository status
 
@@ -82,6 +90,26 @@ evokervcs log [--limit 10]
 ```
 
 Display the commit history with author, date, and commit message. Use `--limit` to control how many commits to show.
+
+#### Branch management
+
+```bash
+evokervcs branch list                    # List all branches
+evokervcs branch create <name>           # Create new branch
+evokervcs branch delete <name> [--force] # Delete branch
+evokervcs branch rename <old> <new>      # Rename branch
+evokervcs checkout <branch>              # Switch to branch
+evokervcs checkout -b <branch>           # Create and switch to new branch
+```
+
+#### Tag management
+
+```bash
+evokervcs tag list                          # List all tags
+evokervcs tag create <name>                 # Create lightweight tag
+evokervcs tag create <name> -m "message"    # Create annotated tag
+evokervcs tag delete <name>                 # Delete tag
+```
 
 ### Interactive TUI
 
@@ -101,7 +129,9 @@ evokervcs
 
 - `1` - Switch to Status view
 - `2` - Switch to Commit log view
-- `3` - Switch to Staging area (placeholder)
+- `3` - Switch to Branches view
+- `4` - Switch to Tags view
+- `5` - Switch to Staging area
 - `h` - Show help screen
 - `↑` or `k` - Move selection up
 - `↓` or `j` - Move selection down
@@ -114,9 +144,10 @@ evokervcs
 
 1. **VCS Module** (`src/vcs/`)
    - `objects.rs`: Git-like object model (Blob, Tree, Commit) with full serialization/deserialization
-   - `repository.rs`: Repository management
+   - `repository.rs`: Repository management with branch and tag operations
    - `index.rs`: Staging area implementation
    - `operations.rs`: Core VCS operations (init, add, commit, status, log)
+   - `hooks.rs`: Git hooks system (pre-commit, post-commit, etc.)
 
 2. **Git Compatibility Module** (`src/git_compat/`)
    - Provides integration with existing git repositories
@@ -141,9 +172,30 @@ EvokerVcs uses a content-addressable storage system similar to git:
 .evk/
 ├── objects/          # Object database
 ├── refs/
-│   └── heads/        # Branch references
+│   ├── heads/        # Branch references
+│   └── tags/         # Tag references
+├── hooks/            # Git hooks (executable scripts)
+│   ├── pre-commit.sample
+│   └── post-commit.sample
 ├── HEAD              # Current branch pointer
 └── index             # Staging area (JSON format)
+```
+
+### Git Hooks
+
+EvokerVcs supports git-style hooks for automation:
+
+- **pre-commit**: Runs before creating a commit. Can abort the commit if it exits with non-zero status.
+- **post-commit**: Runs after a successful commit.
+- **pre-push**: Runs before pushing changes (when implemented).
+- **post-checkout**: Runs after checking out a branch.
+
+To enable a hook, rename it from `.sample` to remove the extension and make it executable:
+
+```bash
+cd .evk/hooks
+mv pre-commit.sample pre-commit
+chmod +x pre-commit
 ```
 
 ## Git Compatibility
