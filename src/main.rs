@@ -3,7 +3,7 @@ mod tui;
 mod vcs;
 
 use anyhow::Result;
-use chrono;
+use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},

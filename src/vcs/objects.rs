@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use hex;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::fmt;

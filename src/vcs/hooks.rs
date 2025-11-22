@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -110,9 +111,11 @@ impl HookManager {
         let pre_commit = r#"#!/bin/sh
 # Pre-commit hook sample
 # This hook is invoked by evokervcs commit
+# Rename to 'pre-commit' (remove .sample) and make executable to enable
 
-# Uncomment to prevent commits if there are whitespace errors
-# exec git diff-index --check --cached HEAD --
+# Example: Check for whitespace errors
+# Uncomment to enable:
+# exec evokervcs diff --check
 
 echo "Running pre-commit hook..."
 exit 0
@@ -120,8 +123,9 @@ exit 0
 
         // Post-commit hook sample
         let post_commit = r#"#!/bin/sh
-# Post-commit hook sample
+# Post-commit hook sample  
 # This hook is invoked after a commit
+# Rename to 'post-commit' (remove .sample) and make executable to enable
 
 echo "Commit completed successfully!"
 exit 0
