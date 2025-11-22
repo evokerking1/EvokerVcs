@@ -30,12 +30,26 @@ A custom git-like version control system written in Rust with a Terminal User In
 
 ## Installation
 
-### Prerequisites
+### Pre-built Binaries
+
+Download pre-built binaries for your platform from the [GitHub Actions artifacts](../../actions) or [releases](../../releases):
+
+- **macOS ARM64** (Apple Silicon): `evokervcs-macos-arm64.tar.gz`
+- **macOS x64** (Intel): `evokervcs-macos-x64.tar.gz`
+- **Linux ARM64**: `evokervcs-linux-arm64.tar.gz`
+- **Linux x64**: `evokervcs-linux-x64.tar.gz`
+- **Windows x86_64**: `evokervcs-windows-x64.exe.zip`
+
+Extract the archive and add the binary to your PATH.
+
+### Build from Source
+
+#### Prerequisites
 
 - Rust 1.70 or later
 - Cargo package manager
 
-### Build from Source
+#### Building
 
 ```bash
 git clone https://github.com/evokerking1/EvokerVcs.git
