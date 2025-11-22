@@ -8,6 +8,8 @@ use crate::vcs::{operations, Repository};
 pub enum AppMode {
     Status,
     Log,
+    Branches,
+    Tags,
     Staging,
     Help,
 }
@@ -48,6 +50,9 @@ pub struct App {
     pub repo_path: PathBuf,
     pub status_lines: Vec<String>,
     pub log_entries: Vec<CommitEntry>,
+    pub branches: Vec<String>,
+    pub current_branch: String,
+    pub tags: Vec<String>,
     pub selected_index: usize,
     pub should_quit: bool,
     pub git_compat_mode: bool,
@@ -63,6 +68,9 @@ impl App {
             repo_path,
             status_lines: Vec::new(),
             log_entries: Vec::new(),
+            branches: Vec::new(),
+            current_branch: String::from("unknown"),
+            tags: Vec::new(),
             selected_index: 0,
             should_quit: false,
             git_compat_mode,
@@ -91,6 +99,21 @@ impl App {
         Ok(())
     }
 
+    pub fn refresh_branches(&mut self) -> Result<()> {
+        if let Ok(repo) = Repository::open(&self.repo_path) {
+            self.branches = repo.list_branches().unwrap_or_default();
+            self.current_branch = repo.current_branch().unwrap_or_else(|_| "unknown".to_string());
+        }
+        Ok(())
+    }
+
+    pub fn refresh_tags(&mut self) -> Result<()> {
+        if let Ok(repo) = Repository::open(&self.repo_path) {
+            self.tags = repo.list_tags().unwrap_or_default();
+        }
+        Ok(())
+    }
+
     pub fn switch_mode(&mut self, mode: AppMode) {
         self.mode = mode;
         self.selected_index = 0;
@@ -107,6 +130,8 @@ impl App {
         let max_index = match self.mode {
             AppMode::Status => self.status_lines.len().saturating_sub(1),
             AppMode::Log => self.log_entries.len().saturating_sub(1),
+            AppMode::Branches => self.branches.len().saturating_sub(1),
+            AppMode::Tags => self.tags.len().saturating_sub(1),
             _ => 0,
         };
         

@@ -27,6 +27,8 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
     let mode_text = match app.mode {
         AppMode::Status => "STATUS",
         AppMode::Log => "LOG",
+        AppMode::Branches => "BRANCHES",
+        AppMode::Tags => "TAGS",
         AppMode::Staging => "STAGING",
         AppMode::Help => "HELP",
     };
@@ -72,6 +74,8 @@ fn render_content(f: &mut Frame, app: &App, area: Rect) {
     match app.mode {
         AppMode::Status => render_status(f, app, area),
         AppMode::Log => render_log(f, app, area),
+        AppMode::Branches => render_branches(f, app, area),
+        AppMode::Tags => render_tags(f, app, area),
         AppMode::Staging => render_staging(f, app, area),
         AppMode::Help => render_help(f, app, area),
     }
@@ -141,6 +145,72 @@ fn render_log(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(list, area);
 }
 
+fn render_branches(f: &mut Frame, app: &App, area: Rect) {
+    let items: Vec<ListItem> = app
+        .branches
+        .iter()
+        .enumerate()
+        .map(|(i, branch)| {
+            let is_current = branch == &app.current_branch;
+            let prefix = if is_current { "* " } else { "  " };
+            let content = format!("{}{}", prefix, branch);
+            
+            let mut style = if i == app.selected_index {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            
+            if is_current {
+                style = style.fg(Color::Green).add_modifier(Modifier::BOLD);
+            }
+            
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(Block::default().title("Branches").borders(Borders::ALL))
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    f.render_widget(list, area);
+}
+
+fn render_tags(f: &mut Frame, app: &App, area: Rect) {
+    let items: Vec<ListItem> = app
+        .tags
+        .iter()
+        .enumerate()
+        .map(|(i, tag)| {
+            let style = if i == app.selected_index {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            
+            ListItem::new(tag.clone()).style(style)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(Block::default().title("Tags").borders(Borders::ALL))
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    f.render_widget(list, area);
+}
+
 fn render_staging(f: &mut Frame, _app: &App, area: Rect) {
     let text = Paragraph::new("Staging area (not yet implemented)")
         .block(Block::default().title("Staging").borders(Borders::ALL))
@@ -155,7 +225,9 @@ fn render_help(f: &mut Frame, _app: &App, area: Rect) {
         Line::from(""),
         Line::from("  1 - Status view"),
         Line::from("  2 - Commit log view"),
-        Line::from("  3 - Staging area"),
+        Line::from("  3 - Branches view"),
+        Line::from("  4 - Tags view"),
+        Line::from("  5 - Staging area"),
         Line::from("  h - Help (this screen)"),
         Line::from(""),
         Line::from("  ↑/k - Move up"),

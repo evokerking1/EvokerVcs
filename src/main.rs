@@ -54,11 +54,80 @@ enum Commands {
         #[arg(short, long, default_value = "10")]
         limit: usize,
     },
+    /// Branch operations
+    Branch {
+        #[command(subcommand)]
+        command: Option<BranchCommands>,
+    },
+    /// Tag operations
+    Tag {
+        #[command(subcommand)]
+        command: Option<TagCommands>,
+    },
+    /// Switch branches
+    Checkout {
+        /// Branch name to switch to
+        branch: String,
+        /// Create new branch
+        #[arg(short = 'b', long)]
+        new_branch: bool,
+    },
     /// Launch interactive TUI
     Tui {
         /// Path to repository (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum BranchCommands {
+    /// List all branches
+    List,
+    /// Create a new branch
+    Create {
+        /// Branch name
+        name: String,
+        /// Starting point (commit ID)
+        #[arg(short, long)]
+        start_point: Option<String>,
+    },
+    /// Delete a branch
+    Delete {
+        /// Branch name
+        name: String,
+        /// Force delete
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Rename a branch
+    Rename {
+        /// Old branch name
+        old_name: String,
+        /// New branch name
+        new_name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum TagCommands {
+    /// List all tags
+    List,
+    /// Create a new tag
+    Create {
+        /// Tag name
+        name: String,
+        /// Commit ID (defaults to HEAD)
+        #[arg(short, long)]
+        commit: Option<String>,
+        /// Tag message (creates annotated tag)
+        #[arg(short, long)]
+        message: Option<String>,
+    },
+    /// Delete a tag
+    Delete {
+        /// Tag name
+        name: String,
     },
 }
 
@@ -94,6 +163,63 @@ fn main() -> Result<()> {
                     println!("    {}", line);
                 }
                 println!();
+            }
+        }
+        Some(Commands::Branch { command }) => {
+            let repo = vcs::Repository::open(".")?;
+            match command {
+                Some(BranchCommands::List) | None => {
+                    let branches = repo.list_branches()?;
+                    let current = repo.current_branch().ok();
+                    for branch in branches {
+                        if Some(&branch) == current.as_ref() {
+                            println!("* {}", branch);
+                        } else {
+                            println!("  {}", branch);
+                        }
+                    }
+                }
+                Some(BranchCommands::Create { name, start_point }) => {
+                    repo.create_branch(&name, start_point.as_deref())?;
+                    println!("Created branch '{}'", name);
+                }
+                Some(BranchCommands::Delete { name, force }) => {
+                    repo.delete_branch(&name, force)?;
+                    println!("Deleted branch '{}'", name);
+                }
+                Some(BranchCommands::Rename { old_name, new_name }) => {
+                    repo.rename_branch(&old_name, &new_name)?;
+                    println!("Renamed branch '{}' to '{}'", old_name, new_name);
+                }
+            }
+        }
+        Some(Commands::Tag { command }) => {
+            let repo = vcs::Repository::open(".")?;
+            match command {
+                Some(TagCommands::List) | None => {
+                    let tags = repo.list_tags()?;
+                    for tag in tags {
+                        println!("{}", tag);
+                    }
+                }
+                Some(TagCommands::Create { name, commit, message }) => {
+                    repo.create_tag(&name, commit.as_deref(), message.as_deref())?;
+                    println!("Created tag '{}'", name);
+                }
+                Some(TagCommands::Delete { name }) => {
+                    repo.delete_tag(&name)?;
+                    println!("Deleted tag '{}'", name);
+                }
+            }
+        }
+        Some(Commands::Checkout { branch, new_branch }) => {
+            let repo = vcs::Repository::open(".")?;
+            if new_branch {
+                repo.checkout_new_branch(&branch)?;
+                println!("Switched to a new branch '{}'", branch);
+            } else {
+                repo.checkout_branch(&branch)?;
+                println!("Switched to branch '{}'", branch);
             }
         }
         Some(Commands::Tui { path }) => {
@@ -167,6 +293,14 @@ fn run_app<B: ratatui::backend::Backend>(
                             let _ = app.refresh_log();
                         }
                         KeyCode::Char('3') => {
+                            app.switch_mode(AppMode::Branches);
+                            let _ = app.refresh_branches();
+                        }
+                        KeyCode::Char('4') => {
+                            app.switch_mode(AppMode::Tags);
+                            let _ = app.refresh_tags();
+                        }
+                        KeyCode::Char('5') => {
                             app.switch_mode(AppMode::Staging);
                         }
                         KeyCode::Char('h') => {
@@ -181,6 +315,14 @@ fn run_app<B: ratatui::backend::Backend>(
                                 AppMode::Log => {
                                     let _ = app.refresh_log();
                                     app.set_message("Log refreshed".to_string());
+                                }
+                                AppMode::Branches => {
+                                    let _ = app.refresh_branches();
+                                    app.set_message("Branches refreshed".to_string());
+                                }
+                                AppMode::Tags => {
+                                    let _ = app.refresh_tags();
+                                    app.set_message("Tags refreshed".to_string());
                                 }
                                 _ => {}
                             }

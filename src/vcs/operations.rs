@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::vcs::hooks::{HookManager, HookType};
 use crate::vcs::index::Index;
 use crate::vcs::objects::{Blob, Commit, Object, ObjectId, Tree};
 use crate::vcs::repository::Repository;
@@ -9,6 +10,11 @@ use crate::vcs::repository::Repository;
 /// Initialize a new repository
 pub fn init<P: AsRef<Path>>(path: P) -> Result<()> {
     let repo = Repository::init(path)?;
+    
+    // Install sample hooks
+    let hook_manager = HookManager::new(repo.hooks_dir.clone());
+    hook_manager.install_default_samples()?;
+    
     println!("Initialized empty EvokerVcs repository in {:?}", repo.evk_dir);
     Ok(())
 }
@@ -104,6 +110,12 @@ pub fn commit<P: AsRef<Path>>(repo_path: P, message: String, author: String) -> 
         return Err(anyhow::anyhow!("Nothing to commit"));
     }
 
+    // Run pre-commit hook
+    let hook_manager = HookManager::new(repo.hooks_dir.clone());
+    if !hook_manager.run_hook(HookType::PreCommit, &[])? {
+        return Err(anyhow::anyhow!("Pre-commit hook failed"));
+    }
+
     // Create tree from index
     let mut tree = Tree::new();
     for entry in index.get_entries() {
@@ -130,6 +142,10 @@ pub fn commit<P: AsRef<Path>>(repo_path: P, message: String, author: String) -> 
     repo.update_ref(commit_id.as_str())?;
 
     println!("Created commit {}", commit_id);
+
+    // Run post-commit hook
+    let _ = hook_manager.run_hook(HookType::PostCommit, &[]);
+
     Ok(())
 }
 
