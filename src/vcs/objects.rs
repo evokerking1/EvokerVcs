@@ -110,7 +110,9 @@ impl Tree {
             content.push(b' ');
             content.extend_from_slice(entry.name.as_bytes());
             content.push(b'\0');
-            content.extend_from_slice(entry.id.as_str().as_bytes());
+            // Store hash as binary (20 bytes), not as string
+            let hash_bytes = hex::decode(entry.id.as_str()).expect("Invalid hash");
+            content.extend_from_slice(&hash_bytes);
         }
 
         let header = format!("tree {}\0", content.len());

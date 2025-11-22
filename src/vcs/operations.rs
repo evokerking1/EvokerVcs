@@ -44,7 +44,8 @@ pub fn add<P: AsRef<Path>>(repo_path: P, files: Vec<PathBuf>) -> Result<()> {
 
             println!("Added {} ({})", file_path.display(), object_id);
         } else if full_path.is_dir() {
-            // TODO: Handle directories recursively
+            // TODO: Directory support - Recursive directory handling not yet implemented
+            // This is a known limitation. For now, add files individually.
             eprintln!("Warning: Directory support not yet implemented, skipping {}", file_path.display());
         }
     }
@@ -113,8 +114,14 @@ pub fn status<P: AsRef<Path>>(repo_path: P) -> Result<Vec<String>> {
     if !index.entries.is_empty() {
         status_lines.push(String::new());
         status_lines.push("Changes to be committed:".to_string());
+        
+        // Check if files existed in previous commit to distinguish new vs modified
+        let has_commits = repo.current_commit()?.is_some();
+        
         for entry in index.get_entries() {
-            status_lines.push(format!("  modified: {}", entry.path.display()));
+            // For now, mark as new if no commits exist, otherwise as modified
+            let status_type = if has_commits { "modified" } else { "new file" };
+            status_lines.push(format!("  {}: {}", status_type, entry.path.display()));
         }
     } else {
         status_lines.push(String::new());

@@ -188,6 +188,12 @@ cargo test
 - `src/git_compat/`: Git compatibility layer
 - `src/tui/`: Terminal UI components
 
+## Known Limitations
+
+- **Directory Support**: Currently, files must be added individually. Directory recursion is not yet implemented.
+- **Log for Native Format**: The log view in TUI only works in git compatibility mode. Native EvokerVcs log viewing is planned for a future release.
+- **Object Reading**: Object deserialization currently has limited support and always returns Blob objects. Full support for reading Tree and Commit objects is in progress.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
