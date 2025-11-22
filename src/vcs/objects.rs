@@ -238,8 +238,119 @@ impl Object {
         let mut content = Vec::new();
         decoder.read_to_end(&mut content)?;
 
-        // Parse object (simplified for now)
-        // In a real implementation, we'd parse the header and content properly
-        Ok(Object::Blob(Blob::new(content)))
+        // Parse object header to determine type
+        let null_pos = content.iter().position(|&b| b == 0)
+            .ok_or_else(|| anyhow::anyhow!("Invalid object format: no null byte in header"))?;
+        
+        let header = std::str::from_utf8(&content[..null_pos])
+            .with_context(|| "Invalid UTF-8 in object header")?;
+        
+        let parts: Vec<&str> = header.split(' ').collect();
+        if parts.len() != 2 {
+            return Err(anyhow::anyhow!("Invalid object header format"));
+        }
+        
+        let obj_type = parts[0];
+        let _size: usize = parts[1].parse()
+            .with_context(|| "Invalid size in object header")?;
+        
+        let data = &content[null_pos + 1..];
+        
+        match obj_type {
+            "blob" => {
+                Ok(Object::Blob(Blob::new(data.to_vec())))
+            }
+            "tree" => {
+                // Parse tree entries
+                let mut tree = Tree::new();
+                let mut pos = 0;
+                
+                while pos < data.len() {
+                    // Read mode
+                    let space_pos = data[pos..].iter().position(|&b| b == b' ')
+                        .ok_or_else(|| anyhow::anyhow!("Invalid tree entry: no space after mode"))?;
+                    let mode = std::str::from_utf8(&data[pos..pos + space_pos])?.to_string();
+                    pos += space_pos + 1;
+                    
+                    // Read name
+                    let null_pos = data[pos..].iter().position(|&b| b == 0)
+                        .ok_or_else(|| anyhow::anyhow!("Invalid tree entry: no null after name"))?;
+                    let name = std::str::from_utf8(&data[pos..pos + null_pos])?.to_string();
+                    pos += null_pos + 1;
+                    
+                    // Read hash (20 bytes for SHA-1)
+                    if pos + 20 > data.len() {
+                        return Err(anyhow::anyhow!("Invalid tree entry: incomplete hash"));
+                    }
+                    let hash_bytes = &data[pos..pos + 20];
+                    let hash = hex::encode(hash_bytes);
+                    pos += 20;
+                    
+                    tree.add_entry(mode, name, ObjectId::new(hash));
+                }
+                
+                Ok(Object::Tree(tree))
+            }
+            "commit" => {
+                // Parse commit data
+                let content_str = std::str::from_utf8(data)
+                    .with_context(|| "Invalid UTF-8 in commit object")?;
+                
+                let mut lines = content_str.lines();
+                let mut tree_id = None;
+                let mut parent_id = None;
+                let mut author = String::new();
+                let mut committer = String::new();
+                let mut message = String::new();
+                let mut in_message = false;
+                
+                for line in lines {
+                    if in_message {
+                        if !message.is_empty() {
+                            message.push('\n');
+                        }
+                        message.push_str(line);
+                    } else if line.is_empty() {
+                        in_message = true;
+                    } else if line.starts_with("tree ") {
+                        tree_id = Some(ObjectId::new(line[5..].to_string()));
+                    } else if line.starts_with("parent ") {
+                        parent_id = Some(ObjectId::new(line[7..].to_string()));
+                    } else if line.starts_with("author ") {
+                        // Format: "author Name Timestamp"
+                        let parts: Vec<&str> = line[7..].split_whitespace().collect();
+                        if parts.len() >= 2 {
+                            // Join all parts except the last one (which is timestamp)
+                            author = parts[..parts.len() - 1].join(" ");
+                        } else {
+                            author = "unknown".to_string();
+                        }
+                    } else if line.starts_with("committer ") {
+                        // Format: "committer Name Timestamp"
+                        let parts: Vec<&str> = line[10..].split_whitespace().collect();
+                        if parts.len() >= 2 {
+                            // Join all parts except the last one (which is timestamp)
+                            committer = parts[..parts.len() - 1].join(" ");
+                        } else {
+                            committer = "unknown".to_string();
+                        }
+                    }
+                }
+                
+                let tree = tree_id.ok_or_else(|| anyhow::anyhow!("Commit missing tree reference"))?;
+                
+                let commit = Commit {
+                    tree,
+                    parent: parent_id,
+                    author,
+                    committer,
+                    message,
+                    timestamp: chrono::Utc::now(), // Note: timestamp parsing would need more work
+                };
+                
+                Ok(Object::Commit(commit))
+            }
+            _ => Err(anyhow::anyhow!("Unknown object type: {}", obj_type))
+        }
     }
 }

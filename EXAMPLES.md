@@ -53,16 +53,34 @@ After launching `evokervcs tui`:
 
 ## Advanced Usage
 
-### Working with Multiple Files
+### Working with Directories
 
 ```bash
-# Add all files in a directory (one by one for now)
-for file in $(find . -type f -not -path './.evk/*'); do
-    evokervcs add "$file"
-done
+# Add entire directories recursively
+evokervcs add src/
+
+# Or add multiple directories at once
+evokervcs add src/ tests/ docs/
+
+# Add specific files
+evokervcs add README.md LICENSE
 
 # Commit everything
-evokervcs commit -m "Add all files" --author "Your Name"
+evokervcs commit -m "Add all project files" --author "Your Name"
+```
+
+### Viewing Commit History
+
+```bash
+# View last 10 commits (default)
+evokervcs log
+
+# View last 20 commits
+evokervcs log --limit 20
+
+# View commit history in TUI
+evokervcs tui
+# Then press '2' to see log view
 ```
 
 ### Checking Repository Structure

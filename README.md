@@ -75,6 +75,14 @@ evokervcs status
 
 Show the current state of the repository, including staged files and current branch.
 
+#### View commit history
+
+```bash
+evokervcs log [--limit 10]
+```
+
+Display the commit history with author, date, and commit message. Use `--limit` to control how many commits to show.
+
 ### Interactive TUI
 
 Launch the TUI by running:
@@ -105,10 +113,10 @@ evokervcs
 ### Core Components
 
 1. **VCS Module** (`src/vcs/`)
-   - `objects.rs`: Git-like object model (Blob, Tree, Commit)
+   - `objects.rs`: Git-like object model (Blob, Tree, Commit) with full serialization/deserialization
    - `repository.rs`: Repository management
    - `index.rs`: Staging area implementation
-   - `operations.rs`: Core VCS operations (init, add, commit, status)
+   - `operations.rs`: Core VCS operations (init, add, commit, status, log)
 
 2. **Git Compatibility Module** (`src/git_compat/`)
    - Provides integration with existing git repositories
@@ -125,6 +133,7 @@ EvokerVcs uses a content-addressable storage system similar to git:
 - Each object is identified by its SHA-1 hash
 - Objects are compressed using zlib
 - Supports three object types: Blob, Tree, and Commit
+- Full object deserialization support for reading all object types
 
 ### Repository Structure
 
@@ -187,12 +196,6 @@ cargo test
 - `src/vcs/`: Core version control functionality
 - `src/git_compat/`: Git compatibility layer
 - `src/tui/`: Terminal UI components
-
-## Known Limitations
-
-- **Directory Support**: Currently, files must be added individually. Directory recursion is not yet implemented.
-- **Log for Native Format**: The log view in TUI only works in git compatibility mode. Native EvokerVcs log viewing is planned for a future release.
-- **Object Reading**: Object deserialization currently has limited support and always returns Blob objects. Full support for reading Tree and Commit objects is in progress.
 
 ## Contributing
 

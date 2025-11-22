@@ -37,8 +37,10 @@ EvokerVcs/
 1. **Core VCS Operations**
    - ✅ Repository initialization (`.evk` directory structure)
    - ✅ File staging with content-addressable storage
+   - ✅ Directory recursion (add entire directories)
    - ✅ Commit creation with SHA-1 hashing
    - ✅ Status checking with new/modified distinction
+   - ✅ Log viewing (commit history)
    - ✅ Object compression using zlib
    - ✅ Branch management
 
@@ -48,6 +50,7 @@ EvokerVcs/
    - ✅ Commit objects (with parent tracking)
    - ✅ SHA-1 content addressing
    - ✅ Binary hash storage in tree objects
+   - ✅ Full object deserialization (read all object types)
 
 3. **Git Compatibility**
    - ✅ Auto-detection of git repositories
@@ -58,7 +61,7 @@ EvokerVcs/
 
 4. **Interactive TUI**
    - ✅ Status view
-   - ✅ Commit log view (git compat mode)
+   - ✅ Commit log view (both git and native formats)
    - ✅ Help screen
    - ✅ Keyboard navigation (Vim-style + arrows)
    - ✅ Real-time updates

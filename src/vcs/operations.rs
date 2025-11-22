@@ -27,30 +27,71 @@ pub fn add<P: AsRef<Path>>(repo_path: P, files: Vec<PathBuf>) -> Result<()> {
         }
 
         if full_path.is_file() {
-            // Read file content
-            let content = fs::read(&full_path)
-                .with_context(|| format!("Failed to read {}", file_path.display()))?;
-
-            // Create blob object
-            let blob = Blob::new(content);
-            let object = Object::Blob(blob);
-
-            // Write object to database
-            let object_id = object.write_to_file(&repo.objects_dir)?;
-
-            // Add to index
-            let mode = "100644".to_string(); // Regular file
-            index.add(file_path.clone(), object_id.clone(), mode);
-
-            println!("Added {} ({})", file_path.display(), object_id);
+            add_file(&repo, &mut index, &file_path)?;
         } else if full_path.is_dir() {
-            // TODO: Directory support - Recursive directory handling not yet implemented
-            // This is a known limitation. For now, add files individually.
-            eprintln!("Warning: Directory support not yet implemented, skipping {}", file_path.display());
+            // Recursively add all files in the directory
+            add_directory(&repo, &mut index, &file_path)?;
         }
     }
 
     index.save(&repo.index_file)?;
+    Ok(())
+}
+
+/// Add a single file to the index
+fn add_file(repo: &Repository, index: &mut Index, file_path: &PathBuf) -> Result<()> {
+    let full_path = repo.root.join(file_path);
+    
+    // Read file content
+    let content = fs::read(&full_path)
+        .with_context(|| format!("Failed to read {}", file_path.display()))?;
+
+    // Create blob object
+    let blob = Blob::new(content);
+    let object = Object::Blob(blob);
+
+    // Write object to database
+    let object_id = object.write_to_file(&repo.objects_dir)?;
+
+    // Add to index
+    let mode = "100644".to_string(); // Regular file
+    index.add(file_path.clone(), object_id.clone(), mode);
+
+    println!("Added {} ({})", file_path.display(), object_id);
+    Ok(())
+}
+
+/// Recursively add all files in a directory
+fn add_directory(repo: &Repository, index: &mut Index, dir_path: &PathBuf) -> Result<()> {
+    let full_path = repo.root.join(dir_path);
+    
+    let entries = fs::read_dir(&full_path)
+        .with_context(|| format!("Failed to read directory {}", dir_path.display()))?;
+
+    for entry in entries {
+        let entry = entry?;
+        let entry_path = entry.path();
+        
+        // Skip .evk and .git directories
+        if let Some(name) = entry_path.file_name() {
+            if name == ".evk" || name == ".git" {
+                continue;
+            }
+        }
+        
+        // Get relative path from repo root
+        let relative_path = entry_path.strip_prefix(&repo.root)
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|_| entry_path.clone());
+
+        if entry_path.is_file() {
+            add_file(repo, index, &relative_path)?;
+        } else if entry_path.is_dir() {
+            // Recursively add subdirectory
+            add_directory(repo, index, &relative_path)?;
+        }
+    }
+
     Ok(())
 }
 
@@ -129,4 +170,54 @@ pub fn status<P: AsRef<Path>>(repo_path: P) -> Result<Vec<String>> {
     }
 
     Ok(status_lines)
+}
+
+/// Get commit log history
+pub fn log<P: AsRef<Path>>(repo_path: P, limit: usize) -> Result<Vec<CommitInfo>> {
+    let repo = Repository::open(repo_path)?;
+    let mut commits = Vec::new();
+    
+    // Start from current commit
+    let mut current_commit_id = match repo.current_commit()? {
+        Some(id) => id,
+        None => return Ok(commits), // No commits yet
+    };
+    
+    // Walk through commit history
+    for _ in 0..limit {
+        let commit_oid = ObjectId::new(current_commit_id.clone());
+        
+        // Read commit object
+        let obj = Object::read_from_file(&repo.objects_dir, &commit_oid)?;
+        
+        match obj {
+            Object::Commit(commit) => {
+                commits.push(CommitInfo {
+                    id: current_commit_id.clone(),
+                    author: commit.author.clone(),
+                    message: commit.message.clone(),
+                    timestamp: commit.timestamp.timestamp(),
+                });
+                
+                // Move to parent commit if exists
+                if let Some(parent_id) = commit.parent {
+                    current_commit_id = parent_id.as_str().to_string();
+                } else {
+                    break; // No more parents
+                }
+            }
+            _ => return Err(anyhow::anyhow!("Expected commit object, got different type")),
+        }
+    }
+    
+    Ok(commits)
+}
+
+/// Information about a commit
+#[derive(Debug, Clone)]
+pub struct CommitInfo {
+    pub id: String,
+    pub author: String,
+    pub message: String,
+    pub timestamp: i64,
 }

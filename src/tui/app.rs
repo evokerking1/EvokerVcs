@@ -12,11 +12,42 @@ pub enum AppMode {
     Help,
 }
 
+/// Unified commit info that works for both git and native formats
+#[derive(Debug, Clone)]
+pub struct CommitEntry {
+    pub id: String,
+    pub author: String,
+    pub message: String,
+    pub timestamp: i64,
+}
+
+impl From<GitCommitInfo> for CommitEntry {
+    fn from(info: GitCommitInfo) -> Self {
+        CommitEntry {
+            id: info.id,
+            author: info.author,
+            message: info.message,
+            timestamp: info.timestamp,
+        }
+    }
+}
+
+impl From<operations::CommitInfo> for CommitEntry {
+    fn from(info: operations::CommitInfo) -> Self {
+        CommitEntry {
+            id: info.id,
+            author: info.author,
+            message: info.message,
+            timestamp: info.timestamp,
+        }
+    }
+}
+
 pub struct App {
     pub mode: AppMode,
     pub repo_path: PathBuf,
     pub status_lines: Vec<String>,
-    pub log_entries: Vec<GitCommitInfo>,
+    pub log_entries: Vec<CommitEntry>,
     pub selected_index: usize,
     pub should_quit: bool,
     pub git_compat_mode: bool,
@@ -50,10 +81,12 @@ impl App {
 
     pub fn refresh_log(&mut self) -> Result<()> {
         if self.git_compat_mode {
-            self.log_entries = GitCompat::git_log(&self.repo_path, 50)?;
+            let git_log = GitCompat::git_log(&self.repo_path, 50)?;
+            self.log_entries = git_log.into_iter().map(CommitEntry::from).collect();
         } else {
-            // TODO: Implement log for EvokerVcs
-            self.log_entries = Vec::new();
+            // Use native EvokerVcs log
+            let evk_log = operations::log(&self.repo_path, 50)?;
+            self.log_entries = evk_log.into_iter().map(CommitEntry::from).collect();
         }
         Ok(())
     }

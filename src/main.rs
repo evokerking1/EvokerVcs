@@ -3,6 +3,7 @@ mod tui;
 mod vcs;
 
 use anyhow::Result;
+use chrono;
 use clap::{Parser, Subcommand};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -47,6 +48,12 @@ enum Commands {
     },
     /// Show repository status
     Status,
+    /// Show commit history
+    Log {
+        /// Number of commits to show
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+    },
     /// Launch interactive TUI
     Tui {
         /// Path to repository (defaults to current directory)
@@ -72,6 +79,21 @@ fn main() -> Result<()> {
             let status_lines = vcs::operations::status(".")?;
             for line in status_lines {
                 println!("{}", line);
+            }
+        }
+        Some(Commands::Log { limit }) => {
+            let log_entries = vcs::operations::log(".", limit)?;
+            for entry in log_entries {
+                println!("commit {}", entry.id);
+                println!("Author: {}", entry.author);
+                println!("Date:   {}", chrono::DateTime::<chrono::Utc>::from_timestamp(entry.timestamp, 0)
+                    .map(|dt| dt.to_rfc2822())
+                    .unwrap_or_else(|| "Unknown".to_string()));
+                println!();
+                for line in entry.message.lines() {
+                    println!("    {}", line);
+                }
+                println!();
             }
         }
         Some(Commands::Tui { path }) => {
