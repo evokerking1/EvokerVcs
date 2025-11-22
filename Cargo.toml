@@ -17,3 +17,14 @@ serde_json = "1.0"
 sha1 = "0.10"
 flate2 = "1.0"
 anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[lib]
+name = "evokervcs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "evokervcs"
+path = "src/main.rs"
